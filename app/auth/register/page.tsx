@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { v4 as uuidv4 } from "uuid"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("")
@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const { register } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,31 +34,17 @@ export default function RegisterPage() {
     }
 
     try {
-      // Simulate API call
-      setTimeout(() => {
-        // Create a new user object
-        const newUser = {
-          user_id: uuidv4(),
-          username,
-          email,
-          full_name: fullName,
-          profile_picture: "/placeholder.svg?height=200&width=200",
-          bio: "",
-          is_active: true,
-          is_superuser: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-
-        // In a real app, you'd send this to your API
-        // For now, just store in localStorage for demo
-        localStorage.setItem("currentUser", JSON.stringify(newUser))
-
-        router.push("/")
-        setIsLoading(false)
-      }, 1000)
-    } catch (err) {
-      setError("An error occurred. Please try again.")
+      // Use register function from auth context
+      await register({
+        email,
+        username,
+        full_name: fullName,
+        password,
+      });
+      
+      router.push("/")
+    } catch (err: any) {
+      setError(err.message || "Registration failed. Please try again.")
       setIsLoading(false)
     }
   }

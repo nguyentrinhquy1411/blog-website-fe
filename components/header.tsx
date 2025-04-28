@@ -16,29 +16,50 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
-import type { User } from "@/lib/types"
+import type { User, Category } from "@/lib/types"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useAuth } from "@/contexts/auth-context"
+import { categoryService } from "@/lib/category-service"
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [categories, setCategories] = useState<Category[]>([])
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
+  const { user, logout } = useAuth()
 
   useEffect(() => {
-    // Check if user is logged in
-    const storedUser = localStorage.getItem("currentUser")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-    }
-
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10)
     }
 
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        // Fetch top categories for the navbar
+        const data = await categoryService.getCategories({ 
+          limit: 3,
+          withPostCount: true 
+        })
+        // Sort by post count to show most popular categories
+        const sortedCategories = data.sort((a, b) => 
+          (b.post_count || 0) - (a.post_count || 0)
+        ).slice(0, 3)
+        setCategories(sortedCategories)
+      } catch (error) {
+        console.error("Failed to fetch navbar categories:", error)
+      } finally {
+        setIsLoadingCategories(false)
+      }
+    }
+
+    fetchCategories()
   }, [])
 
   const handleSearch = (e: React.FormEvent) => {
@@ -49,8 +70,7 @@ export default function Header() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem("currentUser")
-    setUser(null)
+    logout()
     router.push("/")
   }
 
@@ -61,11 +81,16 @@ export default function Header() {
     return pathname.startsWith(href)
   }
 
+  // Always include Home link, then add dynamic category links
   const navItems = [
     { href: '/', label: 'Home' },
-    { href: '/categories/technology', label: 'Technology' },
-    { href: '/categories/science', label: 'Science' },
-    { href: '/categories/design', label: 'Design' },
+    ...(isLoadingCategories 
+      ? [] // If loading, don't show placeholder items
+      : categories.map(cat => ({ 
+          href: `/categories/${cat.slug}`, 
+          label: cat.name 
+        }))
+    )
   ]
 
   return (
@@ -93,6 +118,13 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
+            {/* Add a "More" link to categories page */}
+            <Link
+              href="/categories"
+              className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground"
+            >
+              More
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">
@@ -112,14 +144,14 @@ export default function Header() {
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user.profile_picture || "/placeholder.svg"} alt={user.username} />
-                    <AvatarFallback>{user.full_name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{user.full_name ? user.full_name.substring(0, 2).toUpperCase() : user.username.substring(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <div className="flex items-center justify-start gap-2 p-2">
                   <div className="flex flex-col space-y-1 leading-none">
-                    <p className="font-medium">{user.full_name}</p>
+                    <p className="font-medium">{user.full_name || user.username}</p>
                     <p className="text-sm text-muted-foreground">@{user.username}</p>
                   </div>
                 </div>

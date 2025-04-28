@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { mockUsers } from "@/lib/mock-data"
+import { useAuth } from "@/contexts/auth-context"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const { login } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,22 +25,11 @@ export default function LoginPage() {
     setError("")
 
     try {
-      // Simulate API call with mock data
-      setTimeout(() => {
-        const user = mockUsers.find((user) => user.email === email)
-
-        if (user && password === "password") {
-          // Simple mock check
-          // In a real app, you'd set cookies/tokens here
-          localStorage.setItem("currentUser", JSON.stringify(user))
-          router.push("/")
-        } else {
-          setError("Invalid email or password")
-        }
-        setIsLoading(false)
-      }, 1000)
-    } catch (err) {
-      setError("An error occurred. Please try again.")
+      // Use the login function from auth context
+      await login(email, password)
+      router.push("/")
+    } catch (err: any) {
+      setError(err.message || "Invalid email or password")
       setIsLoading(false)
     }
   }
